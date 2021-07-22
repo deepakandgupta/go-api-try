@@ -1,86 +1,94 @@
 package articles
 
 import (
+	"log"
 	"net/http"
 
+	"github.com/deepakandgupta/jwt-auth-noDB/database/mongodbHandler"
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
-type Article struct {
-	Title   string `json:"title"`
-	Content string `json:"content"`
-}
+const collectionName string = "articles"
 
-var articles = map[string]Article{
-	"1": {
-		Title:   "Hello World in GO",
-		Content: `fmt.Println("Hello World")`,
-	},
-	"2": {
-		Title:   "Yo in GO",
-		Content: `fmt.Println("Yo! From Go!")`,
-	},
-	"3": {
-		Title:   "GOing somewhere with GO",
-		Content: `fmt.Println("Vroom! Vroom! in Go!")`,
-	},
+type articleWOID struct {
+	Title   string             `json:"title" bson:"title"`
+	Content string             `json:"content" bson:"content"`
 }
 
 func GetArticles(c *gin.Context) {
-	// payload, _ := json.Marshal(articles)
-	// w.Header().Set("Content-Type", "application/json")
-	// w.Write([]byte(payload))
-	c.JSON(200,articles)
-}
-
-func GetArticle(c *gin.Context) {
-	id := c.Param("id")
-	c.Writer.Header().Set("my-key", "Eren Jaeger")
-	article, exist := articles[id]
-	if exist {
-		c.JSON(200, article)
+	var allArticles []mongodbHandler.Article
+	allArticles, err :=  mongodbHandler.GetAllDataFromCollection(collectionName)
+	if(err != nil) {
+		log.Fatal(err)
 		return
 	}
-	c.JSON(http.StatusNotFound, gin.H{"id": id})
+	// TODO: Better to convert json and then send
+	c.Writer.Header().Set("Eren", "Jaeger")
+	c.JSON(http.StatusAccepted, allArticles)
 }
 
-func DeleteArticle(c *gin.Context) {
+func GetArticleByID(c *gin.Context) {
 	id := c.Param("id")
-	article, exist := articles[id]
-	if exist {
-		c.JSON(200, article)
-		delete(articles, id)
-	} else {
+
+	article, err := mongodbHandler.GetData(collectionName, "_id", id)
+	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"id": id})
+		return
 	}
+	c.JSON(200, article)
 }
 
-func PostArticle(c *gin.Context) {
+func DeleteArticleByID(c *gin.Context) {
 	id := c.Param("id")
+	article, err := mongodbHandler.DeleteData(collectionName, "_id", id)
+	if(err!=nil){
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{
+		"message": "Article Deleted Successfully",
+		"data": article,
+	})
+}
 
-	var myBodyParams Article
+func AddArticleByID(c *gin.Context) {
+	var myBodyParams articleWOID
 	if err := c.ShouldBindJSON(&myBodyParams); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	articles[id] = myBodyParams
-	c.JSON(200, myBodyParams)
+	article, err := mongodbHandler.AddData(collectionName, myBodyParams)
+	if err!=nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{
+		"message": "Article Added Successfully",
+		"data": article,
+	})
 }
 
-func UpdateArticle(c *gin.Context) {
+func UpdateArticleByID(c *gin.Context) {
 	id := c.Param("id")
-	var myBodyParams Article
+	var myBodyParams articleWOID
 	if err := c.ShouldBindJSON(&myBodyParams); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	_, exist := articles[id]
-	if !exist {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Article does not exist"})
-		return
+	updateValue := bson.M{
+			"$set": bson.M{"title": myBodyParams.Title,
+			"content": myBodyParams.Content},
 	}
 
-	articles[id] = myBodyParams
-	c.JSON(200, myBodyParams)
+	result, err := mongodbHandler.UpdateData(collectionName, "_id", id, updateValue)
+	if(err!=nil){
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{
+		"message": "Update success",
+		"data": result,
+	})
 }
