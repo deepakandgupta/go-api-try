@@ -4,7 +4,8 @@ import (
 	"log"
 
 	"github.com/deepakandgupta/jwt-auth-noDB/api/articles"
-	"github.com/deepakandgupta/jwt-auth-noDB/database/mongodbHandler"
+	"github.com/deepakandgupta/jwt-auth-noDB/api/auth"
+	"github.com/deepakandgupta/jwt-auth-noDB/controllers/databaseController"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -19,8 +20,13 @@ func main() {
 	}
 
 	// Connecting to MongoDB
-	ctx := mongodbHandler.ConnectToMongoDB()
-	defer mongodbHandler.MongoClient.Disconnect(ctx)
+	ctx := databaseController.ConnectToMongoDB()
+	defer databaseController.MongoClient.Disconnect(ctx)
+
+	router.POST("/register", auth.Register)
+	router.POST("/login", auth.Login)
+	router.GET("/dashboard", auth.Welcome)
+	router.GET("/logout", auth.Logout)
 
 	router.GET("/articles", articles.GetArticles)
 	router.GET("/article/:id", articles.GetArticleByID)
