@@ -15,7 +15,6 @@ import (
 var MongoClient *mongo.Client
 var RedisClient *redis.Client
 
-const databaseName string = "goDemo"
 
 func ConnectToMongoDB() (context.Context, error) {
 	mongodbPassword := os.Getenv("MONGODB_PASSWORD")
@@ -51,8 +50,9 @@ func GetRedisClient() *redis.Client{
 }
 
 func GetCollectionAndContext(collectionName string) (context.Context, *mongo.Collection, context.CancelFunc) {
+	mongodbDBName := os.Getenv("MONGODB_DB_NAME")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	collection := MongoClient.Database(databaseName).Collection(collectionName)
+	collection := MongoClient.Database(mongodbDBName).Collection(collectionName)
 	return ctx, collection, cancel
 }
 

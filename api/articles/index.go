@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/deepakandgupta/jwt-auth-noDB/controllers/articleController"
+	"github.com/deepakandgupta/jwt-auth-noDB/controllers/authController"
 	"github.com/deepakandgupta/jwt-auth-noDB/models/articleModel"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -36,6 +37,25 @@ func GetArticleByID(c *gin.Context) {
 }
 
 func DeleteArticleByID(c *gin.Context) {
+	//  check if the user is authenticated or not
+	cookie, err := c.Cookie("sessionID")
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, bson.M{
+			"error": "user unauthorized",
+		})
+		return
+	}
+
+	status, _, err := authController.IsAuthenticated(cookie)
+	if err!=nil {
+		c.JSON(status, gin.H{
+			"error": err.Error(),
+			"message": "Login to delete article",
+		})
+		return
+	}
+
+
 	id := c.Param("id")
 	status, article, err := articleController.DeleteArticle("_id", id)
 	if(err!=nil){
@@ -49,6 +69,26 @@ func DeleteArticleByID(c *gin.Context) {
 }
 
 func AddArticleByID(c *gin.Context) {
+	//  check if the user is authenticated or not
+	cookie, err := c.Cookie("sessionID")
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, bson.M{
+			"error": "user unauthorized",
+		})
+		return
+	}
+
+	status, _, err := authController.IsAuthenticated(cookie)
+	if err!=nil {
+		c.JSON(status, gin.H{
+			"error": err.Error(),
+			"message": "Login to add article",
+		})
+		return
+	}
+
+
+
 	var myBodyParams ArticleWOID
 	if err := c.ShouldBindJSON(&myBodyParams); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -66,6 +106,26 @@ func AddArticleByID(c *gin.Context) {
 }
 
 func UpdateArticleByID(c *gin.Context) {
+	//  check if the user is authenticated or not
+	cookie, err := c.Cookie("sessionID")
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, bson.M{
+			"error": "user unauthorized",
+		})
+		return
+	}
+
+	status, _, err := authController.IsAuthenticated(cookie)
+	if err!=nil {
+		c.JSON(status, gin.H{
+			"error": err.Error(),
+			"message": "Login to update article",
+		})
+		return
+	}
+
+
+
 	id := c.Param("id")
 	var myBodyParams ArticleWOID
 	if err := c.ShouldBindJSON(&myBodyParams); err != nil {
