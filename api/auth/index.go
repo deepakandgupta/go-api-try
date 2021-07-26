@@ -51,8 +51,11 @@ func Login(c *gin.Context) {
 		return
 	}
 
+	// Time for the session to expire
+	ttlSec := 24*60*60 // 1 day
+
 	// Get token from authController
-	status, sessionID, err := authController.Login(creds)
+	status, sessionID, err := authController.Login(creds, ttlSec)
 
 	if err != nil {
 		c.JSON(status, gin.H{
@@ -63,13 +66,13 @@ func Login(c *gin.Context) {
 
 	// Setting same site as strict for CSRF
 	c.SetSameSite(http.SameSiteStrictMode)
-	
+
 	// TODO: change secure to true when using FE instead of postman
 	// Set the cookie to mark user as logged in
 	c.SetCookie(
 		"sessionID",
 		sessionID,
-		60*60,
+		ttlSec,
 		"/",
 		"localhost",
 		false,

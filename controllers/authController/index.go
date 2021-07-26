@@ -1,11 +1,16 @@
 package authController
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/deepakandgupta/jwt-auth-noDB/controllers/databaseController"
 	"github.com/deepakandgupta/jwt-auth-noDB/models/authModel"
+	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"golang.org/x/crypto/bcrypt"
@@ -15,18 +20,20 @@ const collectionName string = "users"
 
 type Credentials authModel.Credentials
 
-var signedInUsers = make(map[string]string)
+var ctxRedis = context.Background()
+
 
 func Register(creds Credentials) (int, error){
 	ctx, collection, cancel := databaseController.GetCollectionAndContext(collectionName)
 	defer cancel()
-
+	creds.Username = strings.ToLower(creds.Username)
+	fmt.Println(creds.Username)
 	// check if the user already exist
 	result := collection.FindOne(ctx, bson.D{
 		bson.E{Key: "username", Value: creds.Username},
 	})
-
-	if result != nil {
+	
+	if result.Err() == nil {
 		err := fmt.Errorf("user already exists")
 		return http.StatusForbidden, err
 	}
@@ -51,12 +58,13 @@ func Register(creds Credentials) (int, error){
 	return http.StatusCreated, nil
 }
 
-func Login(creds Credentials) (int, string, error){
+func Login(creds Credentials, ttlSec int) (int, string, error){
 	ctx, collection, cancel := databaseController.GetCollectionAndContext(collectionName)
 	defer cancel()
 
 	var sessionID string
-
+	creds.Username = strings.ToLower(creds.Username)
+	fmt.Println(creds.Username)
 	// get data from database
 	result := collection.FindOne(ctx, bson.D{
 		bson.E{Key: "username", Value: creds.Username},
@@ -89,19 +97,25 @@ func Login(creds Credentials) (int, string, error){
 		return http.StatusInternalServerError, sessionID, err
 	}
 	sessionID = sessionUUID.String()
-
+	var rdb = databaseController.GetRedisClient()
 	// store the token in our in memory cache
-	signedInUsers[sessionID] = creds.Username
+	err = rdb.Set(ctxRedis, sessionID, creds.Username, time.Duration(ttlSec)*time.Second).Err()
+	if err != nil {
+		log.Fatal("Redis Error: Cannot set key")
+	}
+	
 	return	http.StatusCreated ,sessionID, nil
 }
 
 func IsAuthenticated(sessionID string) (int, string, error){
-	username, exist := signedInUsers[sessionID]
-
+	var rdb = databaseController.GetRedisClient()
+	username, err := rdb.Get(ctxRedis, sessionID).Result()
 	// is the user session does not exist, return unauthorized
-	if !exist{
+	if err == redis.Nil{
 		err := fmt.Errorf("not authorized")
 		return http.StatusUnauthorized, "", err
+	} else if err!=nil{
+		return http.StatusInternalServerError, "", err
 	}
 	return http.StatusOK, username, nil
 }
@@ -112,8 +126,13 @@ func Logout(sessionID string) (int, error){
 	if err!=nil{
 		return http.StatusBadRequest, err
 	}
-
+	var rdb = databaseController.GetRedisClient()
 	// delete user session
-	delete(signedInUsers, sessionID)
+	_, err = rdb.Del(ctxRedis, sessionID).Result()
+	if err!=nil{
+		log.Print("Cannot logout user, please try again")
+		return http.StatusInternalServerError, err
+	}
+
 	return http.StatusOK, nil
 }

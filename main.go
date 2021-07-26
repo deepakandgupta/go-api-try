@@ -20,8 +20,14 @@ func main() {
 	}
 
 	// Connecting to MongoDB
-	ctx := databaseController.ConnectToMongoDB()
-	defer databaseController.MongoClient.Disconnect(ctx)
+	ctxMongo, err := databaseController.ConnectToMongoDB()
+	if err!=nil{
+		log.Fatal("Cannot connect to MongoDB Database")
+	}
+	defer databaseController.MongoClient.Disconnect(ctxMongo)
+	
+	// Connecting to Redis
+	databaseController.ConnectToRedisLocalDB()
 
 	router.POST("/register", auth.Register)
 	router.POST("/login", auth.Login)

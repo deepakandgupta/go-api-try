@@ -7,15 +7,17 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-redis/redis/v8"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var MongoClient *mongo.Client
+var RedisClient *redis.Client
 
 const databaseName string = "goDemo"
 
-func ConnectToMongoDB() context.Context {
+func ConnectToMongoDB() (context.Context, error) {
 	mongodbPassword := os.Getenv("MONGODB_PASSWORD")
 	mongodbDBName := os.Getenv("MONGODB_DB_NAME")
 	mongodbDBUsername := os.Getenv("MONGODB_DB_USERNAME")
@@ -28,11 +30,24 @@ func ConnectToMongoDB() context.Context {
 	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
 		log.Fatal(err)
-		return ctx
+		return ctx, err
 	}
 	MongoClient = client
 	log.Println("Successfully connected to database")
-	return ctx
+	return ctx, nil
+}
+
+func ConnectToRedisLocalDB () {
+	rdb := redis.NewClient(&redis.Options{
+        Addr:     "localhost:6379",
+        Password: "", // no password set
+        DB:       0,  // use default DB
+    })
+	RedisClient = rdb
+}
+
+func GetRedisClient() *redis.Client{
+	return RedisClient
 }
 
 func GetCollectionAndContext(collectionName string) (context.Context, *mongo.Collection, context.CancelFunc) {
