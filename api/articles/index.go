@@ -13,11 +13,6 @@ import (
 
 type ArticleWOID articleModel.ArticleWOID
 
-type responsePayload struct {
-	data	interface{}
-	message	string
-}
-
 func GetArticles(c *gin.Context) {
 	var articles []articleModel.Article
 	status, articles, err :=  articleController.GetAllArticles()
@@ -35,15 +30,17 @@ func GetArticleByID(c *gin.Context) {
 
 	status, article, err := articleController.GetArticle("_id", id)
 	if err != nil {
-		c.JSON(status, gin.H{"error": err})
+		c.JSON(status, gin.H{"error": err.Error()})
 		return
 	}
 	var msg = fmt.Sprintf("Fetched value of id: %s", id)
 
-	c.JSON(status, responsePayload{
-		message: msg,
-		data: article,
-	})
+	var myPayload = gin.H{
+		"message": msg,
+		"data": article,
+	}
+
+	c.JSON(status,myPayload)
 }
 
 func DeleteArticleByID(c *gin.Context) {
@@ -59,9 +56,9 @@ func DeleteArticleByID(c *gin.Context) {
 	}
 	const msg = "Article Deleted Successfully";
 
-	c.JSON(status, responsePayload{
-		message: msg,
-		data: article,
+	c.JSON(status, gin.H{
+		"message": msg,
+		"data": article,
 	})
 }
 
@@ -82,9 +79,9 @@ func AddArticleByID(c *gin.Context) {
 	}
 	var msg = "Article Added Successfully"
 
-	c.JSON(status, responsePayload{
-		message: msg,
-		data: article,
+	c.JSON(status, gin.H{
+		"message": msg,
+		"data": article,
 	})
 }
 
@@ -113,9 +110,9 @@ func UpdateArticleByID(c *gin.Context) {
 	}
 	var msg = fmt.Sprintf("Updated article with id: %s", id)
 
-	c.JSON(status, responsePayload{
-		message: msg,
-		data: result,
+	c.JSON(status, gin.H{
+		"message": msg,
+		"data": result,
 	})
 }
 
@@ -123,7 +120,7 @@ func checkIfAuthenticated(c *gin.Context) bool{
 	//  check if the user is authenticated or not
 	cookie, err := c.Cookie("sessionID")
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, bson.M{
+		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": "user unauthorized",
 		})
 		return false

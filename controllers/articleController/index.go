@@ -53,7 +53,9 @@ func GetArticle(keyToSearch string, value string) (int, articleModel.Article, er
 			bson.E{Key: keyToSearch, Value: value},
 		})
 	}
-
+	if(result.Err() !=nil){
+		return http.StatusNotFound, article, result.Err()
+	}
 	// decode and store in Article model
 	err := result.Decode(&article)
 	if err != nil {
@@ -85,6 +87,10 @@ func DeleteArticle(keyToSearch string, value string) (int, articleModel.Article,
 			bson.E{Key: keyToSearch, Value: value},
 		})
 	}
+	if(result.Err() !=nil){
+		return http.StatusNotFound, article, result.Err()
+	}
+
 	err := result.Decode(&article)
 	if err != nil {
 		fmt.Println(err)
