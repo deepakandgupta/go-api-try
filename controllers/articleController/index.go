@@ -13,10 +13,9 @@ import (
 
 const collectionName string = "articles"
 
-type Article articleModel.Article
 
-func GetAllArticles() (int, []Article, error) {
-	var article []Article
+func GetAllArticles() (int, []articleModel.Article, error) {
+	var article []articleModel.Article
 
 	ctx, collection, cancel := databaseController.GetCollectionAndContext(collectionName)
 	defer cancel()
@@ -31,8 +30,8 @@ func GetAllArticles() (int, []Article, error) {
 	return http.StatusOK, article, nil
 }
 
-func GetArticle(keyToSearch string, value string) (int, Article, error) {
-	var article Article
+func GetArticle(keyToSearch string, value string) (int, articleModel.Article, error) {
+	var article articleModel.Article
 
 	ctx, collection, cancel := databaseController.GetCollectionAndContext(collectionName)
 	defer cancel()
@@ -64,8 +63,8 @@ func GetArticle(keyToSearch string, value string) (int, Article, error) {
 	return http.StatusOK, article, nil
 }
 
-func DeleteArticle(keyToSearch string, value string) (int, Article, error) {
-	var article Article
+func DeleteArticle(keyToSearch string, value string) (int, articleModel.Article, error) {
+	var article articleModel.Article
 
 	ctx, collection, cancel := databaseController.GetCollectionAndContext(collectionName)
 	defer cancel()

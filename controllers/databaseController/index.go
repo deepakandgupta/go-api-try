@@ -12,8 +12,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var MongoClient *mongo.Client
-var RedisClient *redis.Client
+var mongoClient *mongo.Client
+var redisClient *redis.Client
 
 
 func ConnectToMongoDB() (context.Context, error) {
@@ -31,9 +31,13 @@ func ConnectToMongoDB() (context.Context, error) {
 		log.Fatal(err)
 		return ctx, err
 	}
-	MongoClient = client
+	mongoClient = client
 	log.Println("Successfully connected to database")
 	return ctx, nil
+}
+
+func GetMongoClient() *mongo.Client{
+	return mongoClient
 }
 
 func ConnectToRedisLocalDB () {
@@ -42,17 +46,17 @@ func ConnectToRedisLocalDB () {
         Password: "", // no password set
         DB:       0,  // use default DB
     })
-	RedisClient = rdb
+	redisClient = rdb
 }
 
 func GetRedisClient() *redis.Client{
-	return RedisClient
+	return redisClient
 }
 
 func GetCollectionAndContext(collectionName string) (context.Context, *mongo.Collection, context.CancelFunc) {
 	mongodbDBName := os.Getenv("MONGODB_DB_NAME")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	collection := MongoClient.Database(mongodbDBName).Collection(collectionName)
+	collection := mongoClient.Database(mongodbDBName).Collection(collectionName)
 	return ctx, collection, cancel
 }
 

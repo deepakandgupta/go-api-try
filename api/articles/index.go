@@ -1,6 +1,7 @@
 package articles
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/deepakandgupta/jwt-auth-noDB/controllers/articleController"
@@ -12,8 +13,13 @@ import (
 
 type ArticleWOID articleModel.ArticleWOID
 
+type responsePayload struct {
+	data	interface{}
+	message	string
+}
+
 func GetArticles(c *gin.Context) {
-	var articles []articleController.Article
+	var articles []articleModel.Article
 	status, articles, err :=  articleController.GetAllArticles()
 	if(err != nil) {
 		c.JSON(status, gin.H{
@@ -21,7 +27,6 @@ func GetArticles(c *gin.Context) {
 		})
 		return
 	}
-	c.Writer.Header().Set("Eren", "Jaeger")
 	c.JSON(status, articles)
 }
 
@@ -30,31 +35,21 @@ func GetArticleByID(c *gin.Context) {
 
 	status, article, err := articleController.GetArticle("_id", id)
 	if err != nil {
-		c.JSON(status, gin.H{"id": id})
+		c.JSON(status, gin.H{"error": err})
 		return
 	}
-	c.JSON(status, article)
+	var msg = fmt.Sprintf("Fetched value of id: %s", id)
+
+	c.JSON(status, responsePayload{
+		message: msg,
+		data: article,
+	})
 }
 
 func DeleteArticleByID(c *gin.Context) {
-	//  check if the user is authenticated or not
-	cookie, err := c.Cookie("sessionID")
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, bson.M{
-			"error": "user unauthorized",
-		})
+	if isAuth := checkIfAuthenticated(c) ; !isAuth{
 		return
 	}
-
-	status, _, err := authController.IsAuthenticated(cookie)
-	if err!=nil {
-		c.JSON(status, gin.H{
-			"error": err.Error(),
-			"message": "Login to delete article",
-		})
-		return
-	}
-
 
 	id := c.Param("id")
 	status, article, err := articleController.DeleteArticle("_id", id)
@@ -62,32 +57,18 @@ func DeleteArticleByID(c *gin.Context) {
 		c.JSON(status, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(status, gin.H{
-		"message": "Article Deleted Successfully",
-		"data": article,
+	const msg = "Article Deleted Successfully";
+
+	c.JSON(status, responsePayload{
+		message: msg,
+		data: article,
 	})
 }
 
 func AddArticleByID(c *gin.Context) {
-	//  check if the user is authenticated or not
-	cookie, err := c.Cookie("sessionID")
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, bson.M{
-			"error": "user unauthorized",
-		})
+	if isAuth := checkIfAuthenticated(c) ; !isAuth{
 		return
 	}
-
-	status, _, err := authController.IsAuthenticated(cookie)
-	if err!=nil {
-		c.JSON(status, gin.H{
-			"error": err.Error(),
-			"message": "Login to add article",
-		})
-		return
-	}
-
-
 
 	var myBodyParams ArticleWOID
 	if err := c.ShouldBindJSON(&myBodyParams); err != nil {
@@ -99,32 +80,18 @@ func AddArticleByID(c *gin.Context) {
 		c.JSON(status, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(status, gin.H{
-		"message": "Article Added Successfully",
-		"data": article,
+	var msg = "Article Added Successfully"
+
+	c.JSON(status, responsePayload{
+		message: msg,
+		data: article,
 	})
 }
 
 func UpdateArticleByID(c *gin.Context) {
-	//  check if the user is authenticated or not
-	cookie, err := c.Cookie("sessionID")
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, bson.M{
-			"error": "user unauthorized",
-		})
+	if isAuth := checkIfAuthenticated(c) ; !isAuth{
 		return
 	}
-
-	status, _, err := authController.IsAuthenticated(cookie)
-	if err!=nil {
-		c.JSON(status, gin.H{
-			"error": err.Error(),
-			"message": "Login to update article",
-		})
-		return
-	}
-
-
 
 	id := c.Param("id")
 	var myBodyParams ArticleWOID
@@ -144,7 +111,31 @@ func UpdateArticleByID(c *gin.Context) {
 		c.JSON(status, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(status, gin.H{
-		"data": result,
+	var msg = fmt.Sprintf("Updated article with id: %s", id)
+
+	c.JSON(status, responsePayload{
+		message: msg,
+		data: result,
 	})
+}
+
+func checkIfAuthenticated(c *gin.Context) bool{
+	//  check if the user is authenticated or not
+	cookie, err := c.Cookie("sessionID")
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, bson.M{
+			"error": "user unauthorized",
+		})
+		return false
+	}
+
+	status, _, err := authController.IsAuthenticated(cookie)
+	if err!=nil {
+		c.JSON(status, gin.H{
+			"error": err.Error(),
+			"message": "Login to continue",
+		})
+		return false
+	}
+	return true
 }

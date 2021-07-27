@@ -24,7 +24,8 @@ func main() {
 	if err!=nil{
 		log.Fatal("Cannot connect to MongoDB Database")
 	}
-	defer databaseController.MongoClient.Disconnect(ctxMongo)
+	mongoClient := databaseController.GetMongoClient()
+	defer mongoClient.Disconnect(ctxMongo)
 	
 	// Connecting to Redis
 	databaseController.ConnectToRedisLocalDB()

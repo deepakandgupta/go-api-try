@@ -18,12 +18,10 @@ import (
 
 const collectionName string = "users"
 
-type Credentials authModel.Credentials
-
 var ctxRedis = context.Background()
 
 
-func Register(creds Credentials) (int, error){
+func Register(creds authModel.Credentials) (int, error){
 	ctx, collection, cancel := databaseController.GetCollectionAndContext(collectionName)
 	defer cancel()
 	creds.Username = strings.ToLower(creds.Username)
@@ -45,7 +43,7 @@ func Register(creds Credentials) (int, error){
 	}
 	
 	// store the credentials with hashed password
-	var credsToStore = Credentials{
+	var credsToStore = authModel.Credentials{
 		Username: creds.Username,
 		Password: string(hashedPassword),
 	}
@@ -58,7 +56,7 @@ func Register(creds Credentials) (int, error){
 	return http.StatusCreated, nil
 }
 
-func Login(creds Credentials, ttlSec int) (int, string, error){
+func Login(creds authModel.Credentials, ttlSec int) (int, string, error){
 	ctx, collection, cancel := databaseController.GetCollectionAndContext(collectionName)
 	defer cancel()
 
@@ -76,7 +74,7 @@ func Login(creds Credentials, ttlSec int) (int, string, error){
 		return http.StatusNotFound, sessionID, err
 	}
 
-	var storedCreds Credentials
+	var storedCreds authModel.Credentials
 	err := result.Decode(&storedCreds)
 	if err != nil {
 		return http.StatusNotFound, sessionID, err

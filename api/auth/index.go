@@ -5,12 +5,13 @@ import (
 	"net/http"
 
 	"github.com/deepakandgupta/jwt-auth-noDB/controllers/authController"
+	"github.com/deepakandgupta/jwt-auth-noDB/models/authModel"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
 func Register(c *gin.Context){
-	var creds authController.Credentials
+	var creds authModel.Credentials
 	err := c.ShouldBindJSON(&creds)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -44,7 +45,7 @@ func Login(c *gin.Context) {
 	}
 
 	// Get the parameters from request body
-	var creds authController.Credentials
+	var creds authModel.Credentials
 	err := c.ShouldBindJSON(&creds)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
