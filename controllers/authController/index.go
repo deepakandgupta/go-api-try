@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/deepakandgupta/jwt-auth-noDB/controllers/databaseController"
+	"github.com/deepakandgupta/jwt-auth-noDB/helpers"
 	"github.com/deepakandgupta/jwt-auth-noDB/models/authModel"
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
@@ -25,7 +26,17 @@ func Register(creds authModel.Credentials) (int, error){
 	ctx, collection, cancel := databaseController.GetCollectionAndContext(collectionName)
 	defer cancel()
 	creds.Username = strings.ToLower(creds.Username)
-	fmt.Println(creds.Username)
+
+	emailErr := helpers.CheckValidEmail(creds.Username)
+	if emailErr!=nil {
+		return http.StatusBadRequest, emailErr
+	}
+	
+	isValidPass := helpers.CheckIfValidPassword(creds.Password)
+	if !isValidPass {
+		return http.StatusBadRequest, fmt.Errorf("password not according policy")
+	}
+
 	// check if the user already exist
 	result := collection.FindOne(ctx, bson.D{
 		bson.E{Key: "username", Value: creds.Username},
@@ -61,8 +72,16 @@ func Login(creds authModel.Credentials, ttlSec int) (int, string, error){
 	defer cancel()
 
 	var sessionID string
+
+	// Check if username if valid
 	creds.Username = strings.ToLower(creds.Username)
-	fmt.Println(creds.Username)
+
+	emailErr := helpers.CheckValidEmail(creds.Username)
+
+	if emailErr!=nil {
+		return http.StatusBadRequest, "", emailErr
+	}
+
 	// get data from database
 	result := collection.FindOne(ctx, bson.D{
 		bson.E{Key: "username", Value: creds.Username},
@@ -128,7 +147,7 @@ func Logout(sessionID string) (int, error){
 	// delete user session
 	_, err = rdb.Del(ctxRedis, sessionID).Result()
 	if err!=nil{
-		log.Print("Cannot logout user, please try again")
+		log.Print("Cannot logout user, try again")
 		return http.StatusInternalServerError, err
 	}
 

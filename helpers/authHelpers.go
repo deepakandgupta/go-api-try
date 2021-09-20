@@ -5,9 +5,9 @@ import (
 	"unicode"
 )
 
-func CheckValidEmail(email string) bool {
+func CheckValidEmail(email string) error {
     _, err := mail.ParseAddress(email)
-    return err == nil
+    return err
 }
 
 func CheckIfValidPassword(s string) bool {

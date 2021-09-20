@@ -32,9 +32,9 @@ func Register(c *gin.Context){
 
 func Login(c *gin.Context) {
 	// If the cookie is already present, check if the sessionID is valid
-	cookie, cookieReadErr := c.Cookie("sessionID")
-	if cookieReadErr == nil {	
-		status, _, err := authController.IsAuthenticated(cookie)
+	token := checkCookie(c)
+	if token != "" {
+		status, _, err := authController.IsAuthenticated(token)
 		// If sessionID is valid let user know they are already logged in
 		if err == nil && status == http.StatusOK{
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -65,20 +65,7 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	// Setting same site as strict for CSRF
-	c.SetSameSite(http.SameSiteStrictMode)
-
-	// TODO: change secure to true when using FE instead of postman
-	// Set the cookie to mark user as logged in
-	c.SetCookie(
-		"sessionID",
-		sessionID,
-		ttlSec,
-		"/",
-		"localhost",
-		false,
-		true,
-	)
+	c.Writer.Header().Set("Authorization", sessionID)
 
 	c.JSON(status, bson.M{
 		"message": "Logged in succesfully",
@@ -86,15 +73,15 @@ func Login(c *gin.Context) {
 }
 
 func Welcome(c *gin.Context) {
-	cookie, err := c.Cookie("sessionID")
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, bson.M{
+	token := checkCookie(c)
+	if token == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": "user unauthorized",
 		})
 		return
 	}
 
-	status, username, err := authController.IsAuthenticated(cookie)
+	status, username, err := authController.IsAuthenticated(token)
 	if err!=nil {
 		c.JSON(status, gin.H{
 			"error": err.Error(),
@@ -108,15 +95,14 @@ func Welcome(c *gin.Context) {
 }
 
 func Logout(c *gin.Context) {
-	cookie, err := c.Cookie("sessionID")
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, bson.M{
-			"error": "No logged in user found",
+	token := checkCookie(c)
+	if token == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "user unauthorized",
 		})
 		return
 	}
-
-	status, err := authController.Logout(cookie)
+	status, err := authController.Logout(token)
 
 	if err!=nil {
 		c.JSON(status, gin.H{
@@ -125,18 +111,26 @@ func Logout(c *gin.Context) {
 		return
 	}
 
-	// TODO: change secure to true when using FE instead of postman
-	c.SetCookie(
-		"sessionID",
-		"",
-		-1,
-		"/",
-		"localhost",
-		false,
-		true,
-	)
+	// // TODO: change secure to true when using FE instead of postman
+	// c.SetCookie(
+	// 	"sessionID",
+	// 	"",
+	// 	-1,
+	// 	"/",
+	// 	"localhost",
+	// 	false,
+	// 	true,
+	// )
 
 	c.JSON(status, gin.H{
 		"message": "User logged out Successfully",
 	})
+}
+
+func checkCookie(c *gin.Context) string{
+	cookie, err := c.Cookie("sessionID")
+	if err!=nil{
+		return ""
+	}
+	return cookie
 }
