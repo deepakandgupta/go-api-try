@@ -22,19 +22,28 @@ const collectionName string = "users"
 var ctxRedis = context.Background()
 
 
-func Register(creds authModel.Credentials) (int, error){
+func Register(creds authModel.RegistrationCredentials) (int, error){
 	ctx, collection, cancel := databaseController.GetCollectionAndContext(collectionName)
 	defer cancel()
+
+	// get username to check if it is valid and whether the user has already registred or not
 	creds.Username = strings.ToLower(creds.Username)
+	creds.Name = strings.ToLower(creds.Name)
 
 	emailErr := helpers.CheckValidEmail(creds.Username)
 	if emailErr!=nil {
 		return http.StatusBadRequest, emailErr
 	}
 	
+	// Password should be following certain standard
 	isValidPass := helpers.CheckIfValidPassword(creds.Password)
 	if !isValidPass {
 		return http.StatusBadRequest, fmt.Errorf("password not according policy")
+	}
+
+	isValidName := helpers.CheckIfValidName(creds.Name)
+	if !isValidName {
+		return http.StatusBadRequest, fmt.Errorf("name not according policy")
 	}
 
 	// check if the user already exist
@@ -54,7 +63,8 @@ func Register(creds authModel.Credentials) (int, error){
 	}
 	
 	// store the credentials with hashed password
-	var credsToStore = authModel.Credentials{
+	var credsToStore = authModel.RegistrationCredentials{
+		Name: creds.Name,
 		Username: creds.Username,
 		Password: string(hashedPassword),
 	}
@@ -93,7 +103,7 @@ func Login(creds authModel.Credentials, ttlSec int) (int, string, error){
 		return http.StatusNotFound, sessionID, err
 	}
 
-	var storedCreds authModel.Credentials
+	var storedCreds authModel.RegistrationCredentials
 	err := result.Decode(&storedCreds)
 	if err != nil {
 		return http.StatusNotFound, sessionID, err
@@ -116,7 +126,7 @@ func Login(creds authModel.Credentials, ttlSec int) (int, string, error){
 	sessionID = sessionUUID.String()
 	var rdb = databaseController.GetRedisClient()
 	// store the token in our in memory cache
-	err = rdb.Set(ctxRedis, sessionID, creds.Username, time.Duration(ttlSec)*time.Second).Err()
+	err = rdb.Set(ctxRedis, sessionID, storedCreds.Name, time.Duration(ttlSec)*time.Second).Err()
 	if err != nil {
 		log.Fatal("Redis Error: Cannot set key")
 	}
@@ -126,7 +136,7 @@ func Login(creds authModel.Credentials, ttlSec int) (int, string, error){
 
 func IsAuthenticated(sessionID string) (int, string, error){
 	var rdb = databaseController.GetRedisClient()
-	username, err := rdb.Get(ctxRedis, sessionID).Result()
+	name, err := rdb.Get(ctxRedis, sessionID).Result()
 	// is the user session does not exist, return unauthorized
 	if err == redis.Nil{
 		err := fmt.Errorf("not authorized")
@@ -134,7 +144,7 @@ func IsAuthenticated(sessionID string) (int, string, error){
 	} else if err!=nil{
 		return http.StatusInternalServerError, "", err
 	}
-	return http.StatusOK, username, nil
+	return http.StatusOK, name, nil
 }
 
 func Logout(sessionID string) (int, error){

@@ -35,3 +35,15 @@ func CheckIfValidPassword(s string) bool {
     }
     return hasMinLen && hasUpper && hasLower && hasNumber && hasSpecial
 }
+
+func CheckIfValidName(s string) bool {
+    if len(s) < 3 {
+        return false
+    }
+    for _, char := range s {
+        if(unicode.IsNumber(char) || unicode.IsPunct(char) || unicode.IsSymbol(char)){
+            return false
+        } 
+    }
+    return true
+}

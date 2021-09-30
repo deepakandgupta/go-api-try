@@ -11,7 +11,7 @@ import (
 )
 
 func Register(c *gin.Context){
-	var creds authModel.Credentials
+	var creds authModel.RegistrationCredentials
 	err := c.ShouldBindJSON(&creds)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -81,7 +81,7 @@ func Welcome(c *gin.Context) {
 		return
 	}
 
-	status, username, err := authController.IsAuthenticated(token)
+	status, name, err := authController.IsAuthenticated(token)
 	if err!=nil {
 		c.JSON(status, gin.H{
 			"error": err.Error(),
@@ -90,7 +90,7 @@ func Welcome(c *gin.Context) {
 	}
 
 	c.JSON(status, gin.H{
-		"message": fmt.Sprintf("User %s successfully logged in", username),
+		"message": fmt.Sprintf("User %s successfully logged in", name),
 	})
 }
 
