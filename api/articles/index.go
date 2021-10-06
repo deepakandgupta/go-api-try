@@ -44,7 +44,7 @@ func GetArticleByID(c *gin.Context) {
 }
 
 func DeleteArticleByID(c *gin.Context) {
-	if isAuth := checkIfAuthenticated(c) ; !isAuth{
+	if isAuth, _ := checkIfAuthenticated(c) ; !isAuth{
 		return
 	}
 
@@ -63,7 +63,8 @@ func DeleteArticleByID(c *gin.Context) {
 }
 
 func AddArticleByID(c *gin.Context) {
-	if isAuth := checkIfAuthenticated(c) ; !isAuth{
+	isAuth, name := checkIfAuthenticated(c) ; 
+	if (!isAuth){
 		return
 	}
 
@@ -72,7 +73,13 @@ func AddArticleByID(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	status, article, err := articleController.AddArticle(myBodyParams)
+
+	articleBody := make(map[string]string)
+	articleBody["name"] = name
+	articleBody["title"] = myBodyParams.Title
+	articleBody["content"] = myBodyParams.Content
+
+	status, article, err := articleController.AddArticle(articleBody)
 	if err!=nil {
 		c.JSON(status, gin.H{"error": err.Error()})
 		return
@@ -86,7 +93,7 @@ func AddArticleByID(c *gin.Context) {
 }
 
 func UpdateArticleByID(c *gin.Context) {
-	if isAuth := checkIfAuthenticated(c) ; !isAuth{
+	if isAuth, _ := checkIfAuthenticated(c) ; !isAuth{
 		return
 	}
 
@@ -116,23 +123,23 @@ func UpdateArticleByID(c *gin.Context) {
 	})
 }
 
-func checkIfAuthenticated(c *gin.Context) bool{
+func checkIfAuthenticated(c *gin.Context) (bool, string){
 	//  check if the user is authenticated or not
 	cookie, err := c.Cookie("sessionID")
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": "user unauthorized",
 		})
-		return false
+		return false, ""
 	}
 
-	status, _, err := authController.IsAuthenticated(cookie)
+	status, name, _, err := authController.IsAuthenticated(cookie)
 	if err!=nil {
 		c.JSON(status, gin.H{
 			"error": err.Error(),
 			"message": "Login to continue",
 		})
-		return false
+		return false, ""
 	}
-	return true
+	return true, name
 }

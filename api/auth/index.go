@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/deepakandgupta/jwt-auth-noDB/controllers/authController"
@@ -34,7 +33,7 @@ func Login(c *gin.Context) {
 	// If the cookie is already present, check if the sessionID is valid
 	token := checkCookie(c)
 	if token != "" {
-		status, _, err := authController.IsAuthenticated(token)
+		status, _, _, err := authController.IsAuthenticated(token)
 		// If sessionID is valid let user know they are already logged in
 		if err == nil && status == http.StatusOK{
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -56,7 +55,7 @@ func Login(c *gin.Context) {
 	ttlSec := 24*60*60 // 1 day
 
 	// Get token from authController
-	status, sessionID, err := authController.Login(creds, ttlSec)
+	status, sessionID, name, username, err := authController.Login(creds, ttlSec)
 
 	if err != nil {
 		c.JSON(status, gin.H{
@@ -69,6 +68,8 @@ func Login(c *gin.Context) {
 
 	c.JSON(status, bson.M{
 		"message": "Logged in succesfully",
+		"name" : name,
+		"username": username,
 	})
 }
 
@@ -81,7 +82,7 @@ func Welcome(c *gin.Context) {
 		return
 	}
 
-	status, name, err := authController.IsAuthenticated(token)
+	status, name, email, err := authController.IsAuthenticated(token)
 	if err!=nil {
 		c.JSON(status, gin.H{
 			"error": err.Error(),
@@ -90,7 +91,9 @@ func Welcome(c *gin.Context) {
 	}
 
 	c.JSON(status, gin.H{
-		"message": fmt.Sprintf("User %s successfully logged in", name),
+		"username": email,
+		"name": name,
+		"message": "User successfully logged in",
 	})
 }
 

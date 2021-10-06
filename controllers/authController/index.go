@@ -77,10 +77,12 @@ func Register(creds authModel.RegistrationCredentials) (int, error){
 	return http.StatusCreated, nil
 }
 
-func Login(creds authModel.Credentials, ttlSec int) (int, string, error){
+func Login(creds authModel.Credentials, ttlSec int) (int, string, string, string, error){
 	ctx, collection, cancel := databaseController.GetCollectionAndContext(collectionName)
 	defer cancel()
 
+	var username string
+	var name string
 	var sessionID string
 
 	// Check if username if valid
@@ -89,7 +91,7 @@ func Login(creds authModel.Credentials, ttlSec int) (int, string, error){
 	emailErr := helpers.CheckValidEmail(creds.Username)
 
 	if emailErr!=nil {
-		return http.StatusBadRequest, "", emailErr
+		return http.StatusBadRequest, sessionID, name, username, emailErr
 	}
 
 	// get data from database
@@ -98,15 +100,15 @@ func Login(creds authModel.Credentials, ttlSec int) (int, string, error){
 	})
 
 	// return if the user does not exists
-	if result == nil {
+	if result.Err() != nil {
 		err := fmt.Errorf("user does not exist")
-		return http.StatusNotFound, sessionID, err
+		return http.StatusNotFound, sessionID, name, username, err
 	}
 
 	var storedCreds authModel.RegistrationCredentials
 	err := result.Decode(&storedCreds)
 	if err != nil {
-		return http.StatusNotFound, sessionID, err
+		return http.StatusNotFound, sessionID, name, username, err
 	}
 
 	// Get the expected password from our database
@@ -114,42 +116,47 @@ func Login(creds authModel.Credentials, ttlSec int) (int, string, error){
 
 	err = bcrypt.CompareHashAndPassword([]byte(expectedPassword), []byte(creds.Password))
 	if err!=nil {
-		err := fmt.Errorf("wrong password")
-		return http.StatusBadRequest, sessionID, err
+		err := fmt.Errorf("invalid username or password")
+		return http.StatusBadRequest, sessionID, name, username, err
 	}
 
 	// If the password is matched, generate a new session id
 	sessionUUID, err := uuid.NewRandom()
 	if err!=nil{
-		return http.StatusInternalServerError, sessionID, err
+		return http.StatusInternalServerError, sessionID, name, username, err
 	}
 	sessionID = sessionUUID.String()
 	var rdb = databaseController.GetRedisClient()
 	// store the token in our in memory cache
-	err = rdb.Set(ctxRedis, sessionID, storedCreds.Name, time.Duration(ttlSec)*time.Second).Err()
+	redisVal := helpers.ToGOB64(storedCreds.Name, storedCreds.Username)
+	err = rdb.Set(ctxRedis, sessionID, redisVal, time.Duration(ttlSec)*time.Second).Err()
 	if err != nil {
 		log.Fatal("Redis Error: Cannot set key")
 	}
 	
-	return	http.StatusCreated ,sessionID, nil
+	name = storedCreds.Name
+	username = storedCreds.Username
+	
+	return	http.StatusCreated ,sessionID, name, username, nil
 }
 
-func IsAuthenticated(sessionID string) (int, string, error){
+func IsAuthenticated(sessionID string) (int, string, string, error){
 	var rdb = databaseController.GetRedisClient()
-	name, err := rdb.Get(ctxRedis, sessionID).Result()
+	value, err := rdb.Get(ctxRedis, sessionID).Result()
+	data := helpers.FromGOB64(value)
 	// is the user session does not exist, return unauthorized
 	if err == redis.Nil{
 		err := fmt.Errorf("not authorized")
-		return http.StatusUnauthorized, "", err
+		return http.StatusUnauthorized, "", "", err
 	} else if err!=nil{
-		return http.StatusInternalServerError, "", err
+		return http.StatusInternalServerError, "", "", err
 	}
-	return http.StatusOK, name, nil
+	return http.StatusOK, data.Name, data.Username, nil
 }
 
 func Logout(sessionID string) (int, error){
 	// Logout only if the user is authenticated
-	_, _, err:= IsAuthenticated(sessionID)
+	_, _, _, err:= IsAuthenticated(sessionID)
 	if err!=nil{
 		return http.StatusBadRequest, err
 	}
